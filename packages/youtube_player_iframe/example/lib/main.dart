@@ -3,11 +3,17 @@
 // found in the LICENSE file.
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:youtube_player_iframe_example/router.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 
 Future<void> main() async {
   usePathUrlStrategy();
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      systemNavigationBarColor: Colors.transparent,
+    ),
+  );
   runApp(const YoutubeApp());
 }
 

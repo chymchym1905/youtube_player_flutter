@@ -17,6 +17,8 @@ class FullscreenYoutubePlayer extends StatefulWidget {
   const FullscreenYoutubePlayer({
     super.key,
     required this.videoId,
+    this.autoPlay = true,
+    this.goRouter = false,
     this.startSeconds,
     this.endSeconds,
     this.gestureRecognizers = const <Factory<OneSequenceGestureRecognizer>>{},
@@ -25,6 +27,12 @@ class FullscreenYoutubePlayer extends StatefulWidget {
 
   /// The YouTube Video ID.
   final String videoId;
+
+  /// Whether the video should play automatically.
+  final bool autoPlay;
+
+  /// Whether the app is using a [GoRouter].
+  final bool goRouter;
 
   /// The time in seconds when the video should start from.
   final double? startSeconds;
@@ -61,6 +69,8 @@ class FullscreenYoutubePlayer extends StatefulWidget {
   static Future<double?> launch(
     BuildContext context, {
     required String videoId,
+    bool autoPlay = true,
+    bool goRouter = false,
     double? startSeconds,
     double? endSeconds,
     Set<Factory<OneSequenceGestureRecognizer>> gestureRecognizers =
@@ -72,6 +82,8 @@ class FullscreenYoutubePlayer extends StatefulWidget {
       MaterialPageRoute(
         builder: (context) {
           return FullscreenYoutubePlayer(
+            autoPlay: autoPlay,
+            goRouter: goRouter,
             videoId: videoId,
             startSeconds: startSeconds,
             endSeconds: endSeconds,
@@ -86,6 +98,7 @@ class FullscreenYoutubePlayer extends StatefulWidget {
 
 class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer> {
   late final YoutubePlayerController _controller;
+  int callCount = 0;
 
   @override
   void initState() {
@@ -94,13 +107,16 @@ class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer> {
     _controller = YoutubePlayerController.fromVideoId(
       videoId: widget.videoId,
       startSeconds: widget.startSeconds,
-      autoPlay: true,
+      autoPlay: widget.autoPlay,
       params: const YoutubePlayerParams(showFullscreenButton: true),
     )..setFullScreenListener((_) async {
         final currentTime = await _controller.currentTime;
-        if (!mounted) return;
-
+        callCount++;
+        if (!mounted || !context.mounted || callCount > 1) return;
         Navigator.pop(context, currentTime);
+        _resetOrientation();
+        _controller.close();
+        
       });
 
     SystemChrome.setPreferredOrientations(
@@ -109,34 +125,53 @@ class _FullscreenYoutubePlayerState extends State<FullscreenYoutubePlayer> {
         DeviceOrientation.landscapeRight,
       ],
     );
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
   }
 
   @override
   Widget build(BuildContext context) {
-    return PopScope(
-      canPop: false,
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) return;
-        _controller.currentTime.then(
-          (time) {
-            if (context.mounted) return Navigator.pop(context, time);
-          },
-        );
-      },
-      child: YoutubePlayer(
+    final player = YoutubePlayer(
         controller: _controller,
         aspectRatio: MediaQuery.of(context).size.aspectRatio,
         backgroundColor: widget.backgroundColor,
         gestureRecognizers: widget.gestureRecognizers,
-      ),
+      );
+    if (MediaQuery.of(context).orientation == Orientation.portrait) {
+      return SafeArea(
+        child: PopScope(
+          canPop: false,
+          onPopInvokedWithResult: (didPop, _) {
+            if (didPop) return;
+            _controller.exitFullScreen();
+          },
+          child: player,
+        ),
+      );
+    }
+    if (widget.goRouter) {
+      return BackButtonListener(
+        child: player,
+        onBackButtonPressed: () async {
+        final route = ModalRoute.of(context);
+        if (callCount > 1 || route?.isCurrent == false) return true;
+        _controller.exitFullScreen();
+        return true;
+        },
+      );
+    }
+    return PopScope(
+      canPop: Navigator.canPop(context),
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _controller.exitFullScreen();
+      },
+      child: player,
     );
   }
 
   @override
   void dispose() {
-    _resetOrientation();
-    _controller.close();
+    callCount = 0;
     super.dispose();
   }
 

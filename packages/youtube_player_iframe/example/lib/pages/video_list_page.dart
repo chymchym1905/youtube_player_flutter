@@ -7,12 +7,6 @@ import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 const List<String> _videoIds = [
   'j4lDDQTKN8s',
-  'bmgia-h1qNg',
-  'Cohbiz2lOQI',
-  'CoNgsfBbxJk',
-  'c9gzcPkSdw0',
-  'UEA_uwpvqtI',
-  'j61j9X4xCnA',
 ];
 
 ///
@@ -26,6 +20,7 @@ class VideoListPage extends StatefulWidget {
 
 class _VideoListPageState extends State<VideoListPage> {
   late final List<YoutubePlayerController> _controllers;
+  bool _autoPlay = false;
 
   @override
   void initState() {
@@ -36,7 +31,7 @@ class _VideoListPageState extends State<VideoListPage> {
       (index) {
         final controller = YoutubePlayerController.fromVideoId(
           videoId: _videoIds[index],
-          autoPlay: false,
+          autoPlay: _autoPlay,
           params: const YoutubePlayerParams(showFullscreenButton: true),
         );
         controller.setFullScreenListener(
@@ -49,6 +44,7 @@ class _VideoListPageState extends State<VideoListPage> {
             final currentTime = await FullscreenYoutubePlayer.launch(
               context,
               videoId: videoData.videoId,
+              autoPlay: _autoPlay,
               startSeconds: startSeconds,
             );
 

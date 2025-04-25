@@ -72,6 +72,8 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return YoutubePlayerScaffold(
+      goRouter: true,
+      enableFullScreenOnVerticalDrag: false,
       controller: _controller,
       builder: (context, player) {
         return Scaffold(

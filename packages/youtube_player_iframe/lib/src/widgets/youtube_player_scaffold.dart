@@ -21,6 +21,7 @@ class YoutubePlayerScaffold extends StatefulWidget {
     super.key,
     required this.builder,
     required this.controller,
+    this.goRouter = false,
     this.aspectRatio = 16 / 9,
     this.autoFullScreen = true,
     this.defaultOrientations = DeviceOrientation.values,
@@ -49,6 +50,9 @@ class YoutubePlayerScaffold extends StatefulWidget {
   ///
   /// The value is ignored on fullscreen mode.
   final double aspectRatio;
+
+  /// If the app is using GoRouter.
+  final bool goRouter;
 
   /// Whether the player should be fullscreen on device orientation changes.
   final bool autoFullScreen;
@@ -119,6 +123,7 @@ class _YoutubePlayerScaffoldState extends State<YoutubePlayerScaffold> {
               builder: (context, value) {
                 return _FullScreen(
                   auto: widget.autoFullScreen,
+                  goRouter: widget.goRouter,
                   defaultOrientations: widget.defaultOrientations,
                   fullscreenOrientations: widget.fullscreenOrientations,
                   lockedOrientations: widget.lockedOrientations,
@@ -145,6 +150,7 @@ class _FullScreen extends StatefulWidget {
     required this.lockedOrientations,
     required this.child,
     required this.auto,
+    required this.goRouter,
   });
 
   final FullScreenOption fullScreenOption;
@@ -153,7 +159,7 @@ class _FullScreen extends StatefulWidget {
   final List<DeviceOrientation> lockedOrientations;
   final Widget child;
   final bool auto;
-
+  final bool goRouter;
   @override
   State<_FullScreen> createState() => _FullScreenState();
 }
@@ -193,7 +199,7 @@ class _FullScreenState extends State<_FullScreen> with WidgetsBindingObserver {
 
     if (!isFullScreen && orientation == Orientation.landscape) {
       controller.enterFullScreen(lock: false);
-      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
+      SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
     }
 
     _previousOrientation = orientation;
@@ -201,6 +207,21 @@ class _FullScreenState extends State<_FullScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.goRouter) {
+      return BackButtonListener(
+        child: widget.child,
+        onBackButtonPressed: () async {
+          final route = ModalRoute.of(context);
+          // Only handle back button if this is the current route (visible to user)
+          if (mounted && widget.fullScreenOption.enabled && route?.isCurrent == true) {
+            YoutubePlayerControllerProvider.of(context).exitFullScreen();
+            return true;
+          }
+          return false;
+        },
+      );
+    }
+
     return PopScope(
       canPop: canPop,
       onPopInvokedWithResult: _handleFullScreenBackAction,
@@ -228,7 +249,7 @@ class _FullScreenState extends State<_FullScreen> with WidgetsBindingObserver {
 
   SystemUiMode get _uiMode {
     return widget.fullScreenOption.enabled
-        ? SystemUiMode.immersive
+        ? SystemUiMode.immersiveSticky
         : SystemUiMode.edgeToEdge;
   }
 
